@@ -1,0 +1,11 @@
+Package: SimpleOperators
+Type: Package
+Title: Contains sqrt and log functions that output errors.
+Version: 0.1.0
+Author: Ian Jacobs
+Maintainer: Ian Jacobs <imj.lax@gmail.com>
+Description: This package contains three simple functions here. The first two output an error message in a square root or logarithmic function when a negative value is inserted. The third function generalizes an inputted function out as an operator on many functions and applies an error if a negative output is obtained.
+    Use four spaces when indenting paragraphs within the Description.
+License: 
+Encoding: UTF-8
+LazyData: FALSe

@@ -1,0 +1,284 @@
+---
+title: "HW2"
+author: "Your name"
+date: "Due: 11:59 pm, March 17th (Sunday), 2023"
+output: html_document
+---
+#### Problem 1. Basics about ggplot2 (30 pts)
+Use ggplot function to finish the following questions:
+```{r, include=T}
+library(ggplot2)
+library(ggpubr)
+#read TCGA BRCA dataset
+TCGAdata0 <- read.table('TCGA_breastCancer.txt',header=T)
+subtypes <- as.character(unlist(TCGAdata0[1,]))
+TCGAdataMatrix <- as.matrix(TCGAdata0[-1,])
+## prepare data.frame
+TCGAdata_ggplot <- data.frame(ACTR3B=as.numeric(TCGAdataMatrix['ACTR3B',]), 
+                              ANLN=as.numeric(TCGAdataMatrix['ANLN',]), 
+                              BAG12=as.numeric(TCGAdataMatrix['BAG1',])^2, 
+                              subtypes=subtypes)
+
+```
+
+(a) Scattered plot using TCGAdata_ggplot 
+Use expression of ACTR3B as x-axis; expression of ANLN as y-axis. (5 pts)
+```{r, include=T, eval=T}
+Scatter1 <- ggplot(data=TCGAdata_ggplot, aes(x=ACTR3B, y=ANLN)) + geom_point()
+Scatter1
+```
+
+(b) Scattered plot using  TCGAdata_ggplot 
+Use expression of ACTR3B as x-axis; expression of ANLN as y-axis. 
+Use subtypes as colors. (5 pts)
+```{r, include=T, eval=T}
+Scatter2 <- ggplot(data=TCGAdata_ggplot, aes(x=ACTR3B, y=ANLN)) + geom_point(aes(color=subtypes))
+Scatter2
+```
+
+(c) Scattered plot using TCGAdata_ggplot 
+Use expression of ACTR3B as x-axis; expression of ANLN as y-axis. 
+Use subtypes as colors.
+Use the expression value of $BAG1^2$ (already processed in TCGAdata_ggplot) as point size. (5 pts)
+```{r, include=T, eval=T}
+Scatter3 <- ggplot(data=TCGAdata_ggplot, aes(x=ACTR3B, y=ANLN)) + geom_point(aes(color=subtypes, size=BAG12))
+Scatter3
+```
+
+(d) Histogram of ACTR3B using TCGAdata_ggplot (5 pts)
+```{r, include=T, eval=T}
+Histo1 <- ggplot(data=TCGAdata_ggplot, aes(x=ACTR3B)) + geom_histogram()
+Histo1
+```
+
+(e) Histogram of ACTR3B using TCGAdata_ggplot. 
+Fill the Histogram with color (using subtypes as color). (5 pts)
+```{r, include=T, eval=T}
+Histo2 <- ggplot(data=TCGAdata_ggplot, aes(x=ACTR3B)) + geom_histogram(aes(fill=subtypes))
+Histo2
+```
+
+(f) Histogram of ACTR3B using TCGAdata_ggplot.
+Using subtypes as facet. (5 pts)
+```{r, include=T, eval=T}
+Histo3 <- ggplot(data=TCGAdata_ggplot, aes(x=ACTR3B)) + geom_histogram(aes(fill=subtypes)) + facet_wrap(vars(subtypes)) 
+Histo3
+```
+
+#### Problem 2. ggplot2 continues (45 pts)
+Please load ``BRCA_data_for_Problem_2.Rdata" and you will see a Data object. The Data object is a list consisting of data and subtype. data is a data.frame with 2000 rows (genes) and 610 columns (samples). The subtype is the subtype of breast cancer for each sample (three subtypes in total, Her2, Basal or LumA_LumB). Please note that the data has already been normalized and log-transformed, which means you don't need any preprocession of the data.
+
+In question a-d, we will do differentially expressed (DE) analysis and visualize the result. DE analysis is to find which gene expresses differently between two conditions (here the subtypes are our conditions). In this homework, I give an intuitive step-by-step instruction to finish DE analysis (See Question (a) below). The way I give below is obviously superficial but it is intuitive and enough for this homework.
+
+(a) Use all samples with subtype Her2 and LumA_LumB to do a differentially expressed (DE) analysis. Below are simple steps to do DE analysis. 
+
+1): For each gene, calculate the mean(Her)-mean(LumA_LumB), this is the log fold change you will use later. 
+
+2): For each gene, do a two sample t-test using t.test(Her2, LumA_LumB) and extract the p value. After step 1) and 2), you will have two vectors, one is log fold change of each gene and the other one is p value of each gene. 3): Use bonferroni correction to find the differentially expressed genes between two subtypes, that is, for a gene, if its pvalue<0.05/2000, it is a DE gene, otherwise it is not a DE gene (non-DE gene). 
+
+Question: Use ggplot2 to draw a scatter plot for every gene, where x-axis is the log fold change and the y-axis is the -log10(pvalue), and please give DE gene and non-DE gene a different color. (10 pts)
+```{r, include=T, eval=T}
+load("BRCA_data_for_Problem_2.Rdata")
+
+Her2_LumA_LumB_data <- Data$data[, Data$subtype %in% c("Her2", "LumA_LumB")]
+
+brca <- as.matrix(Data$data)
+
+subtypes <- as.character(unlist(Data$subtype))
+
+logFC <- apply(brca, 1, function(x) 
+    mean(x[subtypes == "Her2"]) - mean(x[subtypes == "LumA_LumB"]) 
+  )
+
+pvals <- apply(brca, 1, function(x) {
+    t.test(x[subtypes == "Her2"], x[subtypes == "LumA_LumB"])$p.value
+  })
+
+alpha <- 0.05/2000
+DE_genes <- which(pvals < alpha)
+
+df <- data.frame(logFC = logFC, pvals = pvals, DE_status = ifelse(1:2000 %in% DE_genes, "DE","non-DE"))
+gene_data <- data.frame(logFC = logFC, pvals = pvals)
+gene_data$DE_status <- ifelse(pvals < 0.05/2000, "DE", "non-DE")
+
+ggplot(gene_data, aes(x=logFC, y=-log10(pvals), color = DE_status)) + geom_point() + scale_color_manual(values=c("DE"="purple", "non-DE"="orange")) + labs(x="log fold change",y="-log10(pvalue)")
+```
+
+(b) Label the name of top 3 genes (the three genes with the smallest pvalue) on the plot in (a) (5 pts)
+```{r, include=T, eval=T}
+top_31 <- names(sort(pvals))[1:3]
+gene_data$Gene <- rownames((gene_data))
+fig1 <- ggplot(gene_data, aes(x=logFC, y=-log10(pvals), color = DE_status)) + geom_point() + scale_color_manual(values=c("DE"="purple", "non-DE"="orange")) + labs(x="log fold change",y="-log10(pvalue)") + geom_text(data=gene_data[gene_data$Gene %in% top_31, ], aes(label = Gene), size=3, hjust = -0.1) + ggtitle("Her2 vs. LumA_LumB")
+fig1
+```
+
+(c) Do the same procedure (a and b: figure with top three genes) to Basal VS LumA_LumB. (5 pts)
+```{r, include=T, eval=T}
+load("BRCA_data_for_Problem_2.Rdata")
+
+Basal_LumA_LumB_data <- Data$data[, Data$subtype %in% c("Basal", "LumA_LumB")]
+
+brca <- as.matrix(Data$data)
+
+subtypes <- as.character(unlist(Data$subtype))
+
+logFC <- apply(brca, 1, function(x) 
+    mean(x[subtypes == "Basal"]) - mean(x[subtypes == "LumA_LumB"]) 
+  )
+
+pvals <- apply(brca, 1, function(x) {
+    t.test(x[subtypes == "Basal"], x[subtypes == "LumA_LumB"])$p.value
+  })
+
+alpha <- 0.05/2000
+DE_genes <- which(pvals < alpha)
+
+df <- data.frame(logFC = logFC, pvals = pvals, DE_status = ifelse(1:2000 %in% DE_genes, "DE","non-DE"))
+gene_data <- data.frame(logFC = logFC, pvals = pvals)
+gene_data$DE_status <- ifelse(pvals < 0.05/2000, "DE", "non-DE")
+
+top_32 <- names(sort(pvals))[1:3]
+gene_data$Gene <- rownames((gene_data))
+
+fig2 <- ggplot(gene_data, aes(x=logFC, y=-log10(pvals), color = DE_status)) + geom_point() + scale_color_manual(values=c("DE"="purple", "non-DE"="orange")) + labs(x="log fold change",y="-log10(pvalue)") + geom_text(data=gene_data[gene_data$Gene %in% top_32, ], aes(label = Gene), size=3, hjust = -0.1) + ggtitle("Basal vs. LumA_LumB")
+fig2 
+```
+
+(d) Do the same procedure (a and b: figure with top three genes) to Basal VS Her2. (5 pts)
+```{r, include=T, eval=T}
+load("BRCA_data_for_Problem_2.Rdata")
+
+Basal_Her2_data <- Data$data[, Data$subtype %in% c("Her2", "Her2")]
+
+brca <- as.matrix(Data$data)
+
+subtypes <- as.character(unlist(Data$subtype))
+
+logFC <- apply(brca, 1, function(x) 
+    mean(x[subtypes == "Basal"]) - mean(x[subtypes == "Her2"]) 
+  )
+
+pvals <- apply(brca, 1, function(x) {
+    t.test(x[subtypes == "Basal"], x[subtypes == "Her2"])$p.value
+  })
+
+alpha <- 0.05/2000
+DE_genes <- which(pvals < alpha)
+
+df <- data.frame(logFC = logFC, pvals = pvals, DE_status = ifelse(1:2000 %in% DE_genes, "DE","non-DE"))
+gene_data <- data.frame(logFC = logFC, pvals = pvals)
+gene_data$DE_status <- ifelse(pvals < 0.05/2000, "DE", "non-DE")
+
+top_33 <- names(sort(pvals))[1:3]
+gene_data$Gene <- rownames((gene_data))
+fig3 <- ggplot(gene_data, aes(x=logFC, y=-log10(pvals), color = DE_status)) + geom_point() + scale_color_manual(values=c("DE"="purple", "non-DE"="orange")) + labs(x="log fold change",y="-log10(pvalue)") + geom_text(data=gene_data[gene_data$Gene %in% top_33, ], aes(label = Gene), size=3, hjust = -0.1) + ggtitle("Basal vs. Her2")
+fig3
+```
+
+(e) Do a dimension reduction using t-SNE (R package ``Rtsne"). This is to get a low dimensional representation of our 2000 dimensional data. I give t-SNE code below and tsne\$Y is the two-dimensional data we finally get. 
+
+Question: use ggplot2 to draw a scatter plot using tsne\$Y and give different subtypes a different color (You have better keep color for each subtypes consistently in question a-e). Then use stat\_ellipse() to draw three ellipses to cover the three subtype in the scatter plot you draw. (10 pts)
+```{r}
+library(Rtsne)
+load("BRCA_data_for_Problem_2.Rdata")
+x <- Data$data
+set.seed(15213) # for reproducibility
+
+#when doing t-SNE, rows should be samples and column should be genes
+tsne <- Rtsne(t(x), dims = 2, perplexity=10, verbose=TRUE, max_iter = 5000)
+tsne$Y #This is the two dimenional data we finally get.
+
+tsne_plot <- data.frame(x=tsne$Y[,1], y=tsne$Y[,2])
+
+fig4 <- ggplot(tsne_plot, aes(x=x, y=y, col=subtypes)) + geom_point() + stat_ellipse(type="norm") + labs(x="t-SNE1", y="t-SNE2") + ggtitle("t-SNE1 vs. t-SNE2")
+fig4
+```
+
+(f): Combine the four ggplot2 figures above (three DE plot and one dimension reduction plot) into one figures. (10pt)
+```{r}
+fig_all <- ggarrange(fig1, fig2, fig3, fig4)
+fig_all
+```
+
+#### Problem 3. Condition handling and function operator (25 pts+20 bonus points)
+(a) A negative input to *log()* and *sqrt()* in R only results in warnings:
+```{r, include=T, eval=T, collapse=T}
+log(-1)
+sqrt(-1)
+```
+
+Writing your version of *log.2()* and *sqrt.2()* that trigger errors with a negative input (hint: using *abort()* in rlang, 10 pts):
+```{r, include=T, eval=F}
+library(rlang)
+
+sqrt.2 = function(x){
+  if (x<0){
+    rlang::abort(message="Error: negative input, NA introduced!")} else{return(sqrt(x))}}
+
+log.2 = function(x){
+  if (x<0){
+    rlang::abort(message="Error: negative input, NA introduced!")} else{return(log(x))}}
+
+sqrt.2(-1)
+log.2(-1)
+```
+
+(b) However, these two functions will lead to problems when running *lapply()*:
+```{r, include=T, eval=F}
+lapply(runif(20,-10,5), sqrt.2)
+# Error: negative input, NA introduced!
+```
+
+To fix this, write a function operator *f_operator()* that transform *sqrt.2()* and *log.2()* into functions such that (15 pts):
+
+1. If input is greater than 0, then return normal output.
+
+2. If input is invalid, return an error condition object, with "invalid_input" subclass and invalid value attached. 
+
+```{r, include=T, eval=F}
+f_operator = function(f){
+  force(f) 
+  function(x){
+  if(x>0){f(x)} 
+    else{catch_cnd(abort(message = "negative input detected", .sublass="invalid_input", invalid_input=x))}}}
+
+sqrt.3 = f_operator(sqrt.2)
+log.3 = f_operator(log.2)
+
+set.seed(2)
+(y = lapply(runif(2,-10,10), log.3))
+# [[1]]
+# <error/invalid input>
+# invalid input
+# Backtrace:
+#   1. base::lapply(runif(2, -10, 10), log3)
+#   2. FUN(X[[i]], ...)
+#   3. base::tryCatch(...)
+#   4. base:::tryCatchList(expr, classes, parentenv, handlers)
+#   5. base:::tryCatchOne(expr, names, parentenv, handlers[[1L]])
+#   6. value[[3L]](cond)
+#   7. rlang::catch_cnd(...)
+#  13. base::force(expr)
+# 
+# [[2]]
+# [1] 1.398095
+
+# y[[1]]$invalid_input
+# [1] -6.302355
+
+set.seed(2)
+(y = lapply(runif(2,-10,10), sqrt.3))
+
+# y[[1]]$invalid_input
+# [1] -6.302355
+
+
+```
+
+(c) Write a simple R package with *sqrt.2()*, *log.2()*, *f_operator()* and appropriate documentation. (20 pts. Bonus)
+Upload the pkg to github, and your link here: I am refraining from completing this bonus component.
+your link
+
+
+
+
